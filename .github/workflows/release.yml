@@ -11,24 +11,26 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        dir: ['linux-amd64', 'macosx-amd64', 'macosx-arm64', 'windows-amd64']
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
       - name: Extract version from filenames
-        id: get-version
         run: |
-          VERSION=$(ls macosx-amd64 | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -Vr | head -1)
+          VERSION=$(ls macosx-amd64 | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1)
           echo "Detected version: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: Create Release and Upload matching binaries
+      - name: Create GitHub Release and upload binaries
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.get-version.outputs.version }}
-          files: ${{ matrix.dir }}/zksolc-*-${{ steps.get-version.outputs.version }}*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            linux-amd64/zksolc-linux-amd64-*-${{ env.VERSION }}.*
+            macosx-amd64/zksolc-macosx-amd64-*-${{ env.VERSION }}.*
+            macosx-arm64/zksolc-macosx-arm64-*-${{ env.VERSION }}.*
+            windows-amd64/zksolc-windows-amd64-*-${{ env.VERSION }}.*
+          tag_name: ${{ env.VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup (Delete the tag)
+        run: git push --delete origin ${{ env.VERSION }}        
