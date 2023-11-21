@@ -1,4 +1,4 @@
-name: Release Binaries
+name: Release Binaries and Update Version Info
 
 on:
   push:
@@ -22,8 +22,11 @@ jobs:
       - name: Extract version from filenames
         run: |
           VERSION=$(ls macosx-amd64 | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1)
-          echo "Detected version: $VERSION"
+          MIN_VERSION=$(ls macosx-amd64 | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -V | head -1)
+          echo "Latest version: $VERSION"
+          echo "Minimum version: $MIN_VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "MIN_VERSION=$MIN_VERSION" >> $GITHUB_ENV
 
       - name: Create GitHub Release and upload binaries
         uses: softprops/action-gh-release@v1
@@ -35,4 +38,46 @@ jobs:
             macosx-arm64/zksolc-*${{ env.VERSION }}*
             windows-amd64/zksolc-*${{ env.VERSION }}*
           tag_name: ${{ env.VERSION }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }} 
+
+      - name: Generate version.json
+        run: |
+          echo "{\"latest\": \"${{ env.VERSION }}\", \"minVersion\": \"${{ env.MIN_VERSION }}\"}" > version.json
+
+      - name: Create or Update version-info Release
+        run: |
+          # Check if version-info release exists
+          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/releases/tags/version-info \
+            | jq -r '.id // empty')
+          
+          # Create or update the release
+          if [ -z "$RELEASE_ID" ]; then
+            # Create a new release
+            curl -s -X POST \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/repos/${{ github.repository }}/releases \
+              -d "{\"tag_name\": \"version-info\", \"name\": \"Version Info\", \"body\": \"Version information\", \"draft\": false, \"prerelease\": false}"
+          else
+            # Update the existing release
+            curl -s -X PATCH \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID \
+              -d "{\"name\": \"Version Info\", \"body\": \"Updated version information\"}"
+          fi
+
+      - name: Upload version.json to version-info Release
+        run: |
+          # Get the upload URL for the release
+          UPLOAD_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/releases/tags/version-info \
+            | jq -r '.upload_url' | sed "s/{?name,label}//")
+          
+          # Upload version.json to the release
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @version.json \
+            "${UPLOAD_URL}?name=version.json"
