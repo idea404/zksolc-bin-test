@@ -2,11 +2,15 @@ name: Release Binaries
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'linux-amd64/**'
+      - 'linux-arm64/**'
       - 'macosx-amd64/**'
       - 'macosx-arm64/**'
       - 'windows-amd64/**'
+      - 'version.json'
   workflow_dispatch:
 
 jobs:
@@ -26,9 +30,33 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            linux-amd64/zksolc-linux-amd64-musl-${{ env.VERSION }}*
-            macosx-amd64/zksolc-macosx-amd64-${{ env.VERSION }}*
-            macosx-arm64/zksolc-macosx-arm64-${{ env.VERSION }}*
-            windows-amd64/zksolc-windows-amd64-gnu-${{ env.VERSION }}*
+            linux-amd64/zksolc-*${{ env.VERSION }}*
+            linux-arm64/zksolc-*${{ env.VERSION }}*
+            macosx-amd64/zksolc-*{{ env.VERSION }}*
+            macosx-arm64/zksolc-*${{ env.VERSION }}*
+            windows-amd64/zksolc-*${{ env.VERSION }}*
           tag_name: ${{ env.VERSION }}
-          token: ${{ secrets.GITHUB_TOKEN }} 
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update version-info Release
+        run: |
+          # Fetch tags
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+          # Check if version-info tag exists
+          if git rev-parse -q --verify "refs/tags/version-info" >/dev/null; then
+              # Delete the old tag
+              git tag -d version-info
+              git push origin :refs/tags/version-info
+          fi
+          # Create new local tag
+          git tag version-info
+          # Push the tag
+          git push origin version-info
+
+      - name: Upload version.json to version-info Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: version.json
+          tag_name: version-info
+          token: ${{ secrets.GITHUB_TOKEN }}
+          overwrite: true
