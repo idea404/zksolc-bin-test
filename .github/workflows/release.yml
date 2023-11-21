@@ -44,7 +44,7 @@ jobs:
         run: |
           echo "{\"latest\": \"${{ env.VERSION }}\", \"minVersion\": \"${{ env.MIN_VERSION }}\"}" > version.json
 
-      - name: Create or Update version-info Release
+      - name: Create or update version-info release
         run: |
           # Check if version-info release exists
           RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
@@ -58,17 +58,17 @@ jobs:
               -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               -H "Accept: application/vnd.github.v3+json" \
               https://api.github.com/repos/${{ github.repository }}/releases \
-              -d "{\"tag_name\": \"version-info\", \"name\": \"Version Info\", \"body\": \"Version information\", \"draft\": false, \"prerelease\": false}"
+              -d "{\"tag_name\": \"version-info\", \"name\": \"version-info\", \"body\": \"Version information\", \"draft\": false, \"prerelease\": false, \"latest\": false }"
           else
             # Update the existing release
             curl -s -X PATCH \
               -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               -H "Accept: application/vnd.github.v3+json" \
               https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID \
-              -d "{\"name\": \"Version Info\", \"body\": \"Updated version information\"}"
+              -d "{\"name\": \"version-info\", \"body\": \"Updated version information\"}"
           fi
 
-      - name: Upload version.json to version-info Release
+      - name: Upload version.json to version-info release
         run: |
           # Get the upload URL for the release
           UPLOAD_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
